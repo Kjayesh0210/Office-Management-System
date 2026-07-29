@@ -1,64 +1,160 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { z } from "zod";
+import mongoose from "mongoose";
 
-import { registerSchema, loginSchema } from "@/lib/validations/auth";
+import { USER_ROLES } from "@/constants/roles";
+import { generateAccessToken, generateRefreshToken } from "@/lib/auth/jwt";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { connectDB } from "@/lib/db";
+import { ApiError } from "@/lib/errors/api-error";
+import type { SignupInput } from "@/lib/validations/auth";
+import { companyRepository } from "@/server/repositories/company.repository";
 import { userRepository } from "@/server/repositories/user.repository";
-
-type RegisterData = z.infer<typeof registerSchema>;
-type LoginData = z.infer<typeof loginSchema>;
+import type { AuthResult, LoginInput } from "@/types/auth";
 
 export const authService = {
-  async register(data: RegisterData) {
-    const existingUser = await userRepository.findByEmail(data.email);
+  async register(data: SignupInput): Promise<AuthResult> {
+    await connectDB();
 
-    if (existingUser) {
-      throw new Error("Email already exists");
+    const session = await mongoose.startSession();
+
+    try {
+      session.startTransaction();
+
+      const email = data.email.trim().toLowerCase();
+      const companyCode = data.companyCode.trim().toUpperCase();
+
+      const existingCompany = await companyRepository.findByCompanyCode(
+        companyCode,
+        session,
+      );
+
+      if (existingCompany) {
+        throw new ApiError(409, "Company code already exists.");
+      }
+
+      const existingUser = await userRepository.findByEmail(email, session);
+
+      if (existingUser) {
+        throw new ApiError(409, "Email already exists.");
+      }
+
+      const passwordHash = await hashPassword(data.password);
+
+      const company = await companyRepository.create(
+        {
+          name: data.companyName.trim(),
+          companyCode,
+        },
+        session,
+      );
+
+      const user = await userRepository.create(
+        {
+          companyId: company._id.toString(),
+          name: data.name.trim(),
+          email,
+          passwordHash,
+          role: USER_ROLES.SUPER_ADMIN,
+        },
+        session,
+      );
+
+      const accessToken = generateAccessToken({
+        userId: user._id.toString(),
+        companyId: company._id.toString(),
+        role: user.role,
+      });
+
+      const refreshToken = generateRefreshToken({
+        userId: user._id.toString(),
+        companyId: company._id.toString(),
+        role: user.role,
+      });
+
+      const refreshTokenHash = await hashPassword(refreshToken);
+
+      await userRepository.updateRefreshToken(
+        user._id.toString(),
+        refreshTokenHash,
+        session,
+      );
+
+      await session.commitTransaction();
+
+      return {
+        user: {
+          id: user._id.toString(),
+          companyId: company._id.toString(),
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        accessToken,
+        refreshToken,
+      };
+    } catch (error: any) {
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+
+      if (error?.code === 11000) {
+        throw new ApiError(409, "Company code or email already exists.");
+      }
+
+      throw error;
+    } finally {
+      await session.endSession();
+    }
+  },
+
+  async login(data: LoginInput): Promise<AuthResult> {
+    await connectDB();
+
+    const email = data.email.trim().toLowerCase();
+
+    const user = await userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new ApiError(401, "Invalid email or password.");
     }
 
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const isPasswordValid = await verifyPassword(
+      data.password,
+      user.passwordHash,
+    );
 
-    const user = await userRepository.create({
-      name: data.name,
-      email: data.email,
-      password: hashedPassword,
+    if (!isPasswordValid) {
+      throw new ApiError(401, "Invalid email or password.");
+    }
+
+    const accessToken = generateAccessToken({
+      userId: user._id.toString(),
+      companyId: user.companyId.toString(),
+      role: user.role,
     });
 
-    return {
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-    };
-  },
-  async login(data: LoginData) {
-    const existingUser = await userRepository.findByEmail(data.email);
-    if (!existingUser) {
-      throw new Error("Invalid email or password");
-    }
-    const isPasswordCorrect = await bcrypt.compare(
-      data.password,
-      existingUser.password,
+    const refreshToken = generateRefreshToken({
+      userId: user._id.toString(),
+      companyId: user.companyId.toString(),
+      role: user.role,
+    });
+
+    const refreshTokenHash = await hashPassword(refreshToken);
+
+    await userRepository.updateRefreshToken(
+      user._id.toString(),
+      refreshTokenHash,
     );
-    if (!isPasswordCorrect) {
-      throw new Error("Invalid email or password");
-    }
-    const token = jwt.sign(
-      {
-        userId: existingUser._id,
-        email: existingUser.email,
-      },
-      process.env.JWT_SECRET!,
-      {
-        expiresIn: "7d",
-      },
-    );
+
     return {
-      token,
       user: {
-        id: existingUser._id.toString(),
-        name: existingUser.name,
-        email: existingUser.email,
+        id: user._id.toString(),
+        companyId: user.companyId.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
       },
+      accessToken,
+      refreshToken,
     };
   },
 };

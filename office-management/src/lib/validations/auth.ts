@@ -1,25 +1,39 @@
 import { z } from "zod";
 
-const registerSchema = z
-  .object({
-    name: z.string().min(4, "Name must be at least 4 characters"),
-    email: z.email("Invalid Email Address"),
-    password: z.string().min(6, "Min 6 characters required"),
-    confirmPassword: z.string(),
-  })
+export const signupSchema = z.object({
+  companyName: z
+    .string()
+    .trim()
+    .min(3, "Company name must be at least 3 characters.")
+    .max(100),
 
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Password does not match",
-    path: ["confirmPassword"],
-  });
+  companyCode: z
+    .string()
+    .trim()
+    .min(3)
+    .max(20)
+    .regex(/^[A-Z0-9_-]+$/i, "Invalid company code."),
 
-const loginSchema = z.object({
-  email: z.email("Invalid Email Address"),
-  password: z.string(),
+  name: z.string().trim().min(2).max(100),
+
+  email: z.email().transform((email) => email.trim().toLowerCase()),
+
+  password: z
+    .string()
+    .min(8, "Password must contain at least 8 characters.")
+    .max(128)
+    .regex(/[A-Z]/, "Must contain one uppercase letter.")
+    .regex(/[a-z]/, "Must contain one lowercase letter.")
+    .regex(/[0-9]/, "Must contain one number.")
+    .regex(/[^A-Za-z0-9]/, "Must contain one special character."),
 });
 
-type RegisterSchema = z.infer<typeof registerSchema>;
-type LoginSchema = z.infer<typeof loginSchema>;
+export const loginSchema = z.object({
+  companyCode: z.string(),
+  email: z.email().transform((email) => email.trim().toLowerCase()),
 
-export { registerSchema, loginSchema };
-export type { RegisterSchema, LoginSchema };
+  password: z.string().min(1, "Password is required.").max(128),
+});
+
+export type SignupInput = z.infer<typeof signupSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
