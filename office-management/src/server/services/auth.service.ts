@@ -1,14 +1,22 @@
 import mongoose from "mongoose";
 
 import { USER_ROLES } from "@/constants/roles";
-import { generateAccessToken, generateRefreshToken } from "@/lib/auth/jwt";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "@/lib/auth/jwt";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { connectDB } from "@/lib/db";
 import { ApiError } from "@/lib/errors/api-error";
-import type { SignupInput } from "@/lib/validations/auth";
+import type {
+  LoginInput,
+  RefreshInput,
+  SignupInput,
+} from "@/lib/validations/auth";
 import { companyRepository } from "@/server/repositories/company.repository";
 import { userRepository } from "@/server/repositories/user.repository";
-import type { AuthResult, LoginInput } from "@/types/auth";
+import type { AuthResult } from "@/types/auth";
 
 export const authService = {
   async register(data: SignupInput): Promise<AuthResult> {
@@ -157,4 +165,69 @@ export const authService = {
       refreshToken,
     };
   },
+
+  async refresh(data: RefreshInput): Promise<AuthResult> {
+    await connectDB();
+
+    let payload;
+
+    try {
+      payload = verifyRefreshToken(data.refreshToken);
+    } catch {
+      throw new ApiError(401, "Invalid refresh token.");
+    }
+
+    const user = await userRepository.findById(payload.userId);
+
+    if (!user || !user.refreshTokenHash) {
+      throw new ApiError(401, "Invalid refresh token.");
+    }
+
+    const isValid = await verifyPassword(
+      data.refreshToken,
+      user.refreshTokenHash,
+    );
+
+    if (!isValid) {
+      throw new ApiError(401, "Invalid refresh token.");
+    }
+
+    const accessToken = generateAccessToken({
+      userId: user._id.toString(),
+      companyId: user.companyId.toString(),
+      role: user.role,
+    });
+
+    const refreshToken = generateRefreshToken({
+      userId: user._id.toString(),
+      companyId: user.companyId.toString(),
+      role: user.role,
+    });
+
+    const refreshTokenHash = await hashPassword(refreshToken);
+
+    await userRepository.updateRefreshToken(
+      user._id.toString(),
+      refreshTokenHash,
+    );
+
+    return {
+      user: {
+        id: user._id.toString(),
+        companyId: user.companyId.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      accessToken,
+      refreshToken,
+    };
+  },
+
+  async logout(userId: string): Promise<void> {
+    await connectDB();
+
+    await userRepository.updateRefreshToken(userId, null);
+  },
+  
 };

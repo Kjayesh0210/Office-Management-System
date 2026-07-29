@@ -36,6 +36,14 @@ export const userRepository = {
     }).session(session ?? null);
   },
 
+  async findById(id: string, session?: ClientSession) {
+    await connectDB();
+
+    return User.findById(id)
+      .session(session ?? null)
+      .lean();
+  },
+
   async create(data: CreateUserInput, session?: ClientSession) {
     await connectDB();
 
@@ -48,7 +56,7 @@ export const userRepository = {
 
   async updateRefreshToken(
     userId: string,
-    refreshTokenHash: string,
+    refreshTokenHash: string | null,
     session?: ClientSession,
   ) {
     await connectDB();
@@ -64,4 +72,5 @@ export const userRepository = {
       },
     ).lean();
   },
+  
 };

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     return successResponse(
       {
-        user: result.user,
+        user: result,
       },
       200,
       "Login successful.",
