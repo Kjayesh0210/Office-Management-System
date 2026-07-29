@@ -229,5 +229,22 @@ export const authService = {
 
     await userRepository.updateRefreshToken(userId, null);
   },
-  
+
+  async me(userId: string) {
+    await connectDB();
+
+    const user = await userRepository.findById(userId);
+
+    if (!user) {
+      throw new ApiError(404, "User not found.");
+    }
+
+    return {
+      id: user._id.toString(),
+      companyId: user.companyId.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+  },
 };
