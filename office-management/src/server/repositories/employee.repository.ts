@@ -58,28 +58,65 @@ export const employeeRepository = {
       .session(session ?? null)
       .lean();
   },
-  async findAll(companyId: string, session?: ClientSession) {
+  async findAll(
+    companyId: string,
+    page: number,
+    limit: number,
+    session?: ClientSession,
+  ) {
     await connectDB();
 
-    return Employee.find({
+    const skip = (page - 1) * limit;
+
+    const [employee, total] = await Promise.all([
+      Employee.find({ companyId })
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 })
+        .session(session ?? null)
+        .lean(),
+
+      Employee.countDocuments({
+        companyId,
+      }).session(session ?? null),
+    ]);
+
+    return {
+      employee,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  },
+  async update(
+    companyId: string,
+    employeeId: string,
+    data: UpdateEmployeeInput,
+    session?: ClientSession,
+  ) {
+    await connectDB();
+
+    return Employee.findOneAndUpdate(
+      {
+        _id: employeeId,
+        companyId,
+      },
+      data,
+      {
+        new: true,
+        session: session ?? null,
+      },
+    ).lean();
+  },
+  async delete(companyId: string, employeeId: string, session?: ClientSession) {
+    await connectDB();
+
+    return Employee.findOneAndDelete({
+      _id: employeeId,
       companyId,
     })
       .session(session ?? null)
       .lean();
-  },
-  async update(id: string, data: UpdateEmployeeInput, session?: ClientSession) {
-    await connectDB();
-
-    return Employee.findByIdAndUpdate(id, data, {
-      new: true,
-      session: session ?? null,
-    }).lean();
-  },
-  async delete(id: string, session?: ClientSession) {
-    await connectDB();
-
-    return Employee.findByIdAndDelete(id, {
-      session: session ?? null,
-    }).lean();
   },
 };

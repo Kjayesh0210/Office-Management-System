@@ -27,18 +27,21 @@ export const employeeService = {
       ...data,
     });
   },
-  async findAll(companyId: string) {
-    return employeeRepository.findAll(companyId);
+
+  async findAll(companyId: string, page = 1, limit = 10) {
+    return employeeRepository.findAll(companyId, page, limit);
   },
+
   async findById(companyId: string, employeeId: string) {
     const employee = await employeeRepository.findById(companyId, employeeId);
 
-    if (!employee || employee.companyId.toString() !== companyId) {
+    if (!employee) {
       throw new ApiError(404, "Employee not found.");
     }
 
     return employee;
   },
+
   async update(
     companyId: string,
     employeeId: string,
@@ -68,11 +71,31 @@ export const employeeService = {
       }
     }
 
-    return employeeRepository.update(employeeId, data);
+    const updatedEmployee = await employeeRepository.update(
+      companyId,
+      employeeId,
+      data,
+    );
+
+    if (!updatedEmployee) {
+      throw new ApiError(404, "Employee not found.");
+    }
+
+    return updatedEmployee;
   },
+
   async delete(companyId: string, employeeId: string) {
     await this.findById(companyId, employeeId);
 
-    return employeeRepository.delete(employeeId);
+    const deletedEmployee = await employeeRepository.delete(
+      companyId,
+      employeeId,
+    );
+
+    if (!deletedEmployee) {
+      throw new ApiError(404, "Employee not found.");
+    }
+
+    return deletedEmployee;
   },
 };
