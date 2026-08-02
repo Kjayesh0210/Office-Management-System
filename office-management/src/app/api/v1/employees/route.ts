@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { ZodError } from "zod";
 import { USER_ROLES } from "@/constants/roles";
 import { requireAuth } from "@/lib/auth/require-auth";
@@ -7,10 +7,8 @@ import { errorResponse, successResponse } from "@/lib/api/response";
 import { ApiError } from "@/lib/errors/api-error";
 import { createEmployeeSchema } from "@/lib/validations/employee";
 import { employeeService } from "@/server/services/employee.service";
-import { Instrument_Sans } from "next/font/google";
-import { NEXT_REWRITTEN_QUERY_HEADER } from "next/dist/client/components/app-router-headers";
 
-export async function POST(request: NextResponse) {
+export async function POST(request: NextRequest) {
   try {
     const authHeaders = request.headers.get("authorization") ?? undefined;
     const user = await requireAuth(authHeaders);
@@ -47,14 +45,34 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const page = Number(searchParams.get("page") ?? 1);
+
     const limit = Number(searchParams.get("limit") ?? 10);
 
-    const result = await employeeService.findAll(
-      user.companyId.toString(),
+    const search = searchParams.get("search") ?? undefined;
+
+    const department = searchParams.get("department") ?? undefined;
+
+    const designation = searchParams.get("designation") ?? undefined;
+
+    const status =
+      (searchParams.get("status") as "ACTIVE" | "INACTIVE" | null) ?? undefined;
+
+    const sortBy = searchParams.get("sortBy") ?? undefined;
+
+    const order =
+      (searchParams.get("order") as "asc" | "desc" | null) ?? undefined;
+
+    const result = await employeeService.findAll(user.companyId.toString(), {
       page,
       limit,
-    );
-    return successResponse(result, 201, "Employee created successfully.");
+      search,
+      department,
+      designation,
+      status,
+      sortBy,
+      order,
+    });
+    return successResponse(result, 200, "Employees fetched successfully.");
   } catch (error) {
     if (error instanceof ApiError) {
       return errorResponse(error.message, error.statusCode);

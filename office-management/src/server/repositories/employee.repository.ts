@@ -60,19 +60,88 @@ export const employeeRepository = {
   },
   async findAll(
     companyId: string,
-    page: number,
-    limit: number,
+    options: {
+      page: number;
+      limit: number;
+      search?: string;
+      department?: string;
+      designation?: string;
+      status?: "ACTIVE" | "INACTIVE";
+      sortBy?: string;
+      order?: "asc" | "desc";
+    },
     session?: ClientSession,
   ) {
     await connectDB();
+    const {
+      page,
+      limit,
+      search,
+      department,
+      designation,
+      status,
+      sortBy,
+      order,
+    } = options;
 
     const skip = (page - 1) * limit;
 
+    const query: Record<string, any> = {
+      companyId,
+    };
+
+    if (department) {
+      query.department = department;
+    }
+
+    if (designation) {
+      query.designation = designation;
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        {
+          employeeCode: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          firstName: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          lastName: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          email: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+      ];
+    }
+    const sort: Record<string, 1 | -1> = {
+      createdAt: -1,
+    };
+
+    if (sortBy) {
+      sort[sortBy] = order === "asc" ? 1 : -1;
+    }
     const [employee, total] = await Promise.all([
       Employee.find({ companyId })
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 })
+        .sort(sort)
         .session(session ?? null)
         .lean(),
 
@@ -87,6 +156,8 @@ export const employeeRepository = {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+      hasNextPage: page * limit < total,
+      hasPreviousPage: page > 1,
     };
   },
   async update(

@@ -28,8 +28,20 @@ export const employeeService = {
     });
   },
 
-  async findAll(companyId: string, page = 1, limit = 10) {
-    return employeeRepository.findAll(companyId, page, limit);
+  async findAll(
+    companyId: string,
+    options: {
+      page: number;
+      limit: number;
+      search?: string;
+      department?: string;
+      designation?: string;
+      status?: "ACTIVE" | "INACTIVE";
+      sortBy?: string;
+      order?: "asc" | "desc";
+    },
+  ) {
+    return employeeRepository.findAll(companyId, options);
   },
 
   async findById(companyId: string, employeeId: string) {
