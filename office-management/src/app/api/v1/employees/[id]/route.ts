@@ -37,3 +37,54 @@ export async function GET(
     return errorResponse("Internal Server Error", 500);
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const authHeader = request.headers.get("Authorization") ?? undefined;
+    const user = await requireAuth(authHeader);
+    requireRole(user.role, USER_ROLES.SUPER_ADMIN, USER_ROLES.HR_ADMIN);
+    const { id } = await params;
+    const body = await request.json();
+    const data = updateEmployeeSchema.parse(body);
+    const employee = await employeeService.update(
+      user.companyId.toString(),
+      id,
+      data,
+    );
+
+    return successResponse(employee, 200, "Employee updated successfully.");
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return errorResponse("Validation Failed", 400);
+    }
+    if (error instanceof ApiError) {
+      return errorResponse(error.message, error.statusCode);
+    }
+    return errorResponse("Internal Server Error", 500);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const authHeader = request.headers.get("Authorization") ?? undefined;
+    const user = await requireAuth(authHeader);
+
+    requireRole(user.role, USER_ROLES.SUPER_ADMIN);
+
+    const { id } = await params;
+    await employeeService.delete(user.companyId.toString(), id);
+    return successResponse(null, 200, "Employee deleted successfully.");
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return errorResponse(error.message, error.statusCode);
+    }
+
+    return errorResponse("Internal Server Error", 500);
+  }
+}
