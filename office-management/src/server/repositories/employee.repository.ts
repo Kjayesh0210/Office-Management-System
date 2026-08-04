@@ -1,11 +1,12 @@
 import { ClientSession } from "mongoose";
 
 import { connectDB } from "@/lib/db";
-import { Employee } from "@/server/models/employee.models";
+import { Employee } from "@/server/models/employee.model";
 import type {
   CreateEmployeeInput,
   UpdateEmployeeInput,
 } from "@/lib/validations/employee";
+import "@/server/models/department.model";
 
 export const employeeRepository = {
   async create(
@@ -18,8 +19,12 @@ export const employeeRepository = {
       session,
     });
 
-    return employee.toObject();
+    return Employee.findById(employee._id)
+      .populate("departmentId", "name code")
+      .session(session ?? null)
+      .lean();
   },
+
   async findById(
     companyId: string,
     employeeId: string,
@@ -31,9 +36,11 @@ export const employeeRepository = {
       _id: employeeId,
       companyId,
     })
+      .populate("departmentId", "name code")
       .session(session ?? null)
       .lean();
   },
+
   async findByEmployeeCode(
     companyId: string,
     employeeCode: string,
@@ -48,6 +55,7 @@ export const employeeRepository = {
       .session(session ?? null)
       .lean();
   },
+
   async findByEmail(companyId: string, email: string, session?: ClientSession) {
     await connectDB();
 
@@ -58,6 +66,7 @@ export const employeeRepository = {
       .session(session ?? null)
       .lean();
   },
+
   async findAll(
     companyId: string,
     options: {
@@ -91,7 +100,7 @@ export const employeeRepository = {
     };
 
     if (department) {
-      query.department = department;
+      query.departmentId = department;
     }
 
     if (designation) {
@@ -138,7 +147,8 @@ export const employeeRepository = {
       sort[sortBy] = order === "asc" ? 1 : -1;
     }
     const [employee, total] = await Promise.all([
-      Employee.find({ companyId })
+      Employee.find(query)
+        .populate("departmentId", "name code")
         .skip(skip)
         .limit(limit)
         .sort(sort)
@@ -160,6 +170,7 @@ export const employeeRepository = {
       hasPreviousPage: page > 1,
     };
   },
+
   async update(
     companyId: string,
     employeeId: string,
@@ -178,8 +189,11 @@ export const employeeRepository = {
         new: true,
         session: session ?? null,
       },
-    ).lean();
+    )
+      .populate("departmentId", "name code")
+      .lean();
   },
+
   async delete(companyId: string, employeeId: string, session?: ClientSession) {
     await connectDB();
 

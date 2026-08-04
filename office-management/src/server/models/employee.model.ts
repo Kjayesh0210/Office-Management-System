@@ -11,8 +11,8 @@ const employeeSchema = new Schema(
 
     employeeCode: {
       type: String,
-      required: true,
       trim: true,
+      default: null,
     },
 
     firstName: {
@@ -23,8 +23,8 @@ const employeeSchema = new Schema(
 
     lastName: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
 
     email: {
@@ -36,25 +36,25 @@ const employeeSchema = new Schema(
 
     phone: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
-
-    department: {
-      type: String,
-      required: true,
-      trim: true,
+    departmentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Department",
+      default: null,
+      index: true,
     },
 
     designation: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
 
     joiningDate: {
       type: Date,
-      required: true,
+      default: null,
     },
 
     status: {

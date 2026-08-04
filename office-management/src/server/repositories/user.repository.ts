@@ -6,6 +6,7 @@ import User from "@/server/models/user.model";
 
 export interface CreateUserInput {
   companyId: string;
+  employeeId?: string | null;
   name: string;
   email: string;
   passwordHash: string;

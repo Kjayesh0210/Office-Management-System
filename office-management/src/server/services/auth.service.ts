@@ -17,6 +17,7 @@ import type {
 import { companyRepository } from "@/server/repositories/company.repository";
 import { userRepository } from "@/server/repositories/user.repository";
 import type { AuthResult } from "@/types/auth";
+import { employeeRepository } from "@/server/repositories/employee.repository";
 
 export const authService = {
   async register(data: SignupInput): Promise<AuthResult> {
@@ -55,9 +56,25 @@ export const authService = {
         session,
       );
 
+      const employee = await employeeRepository.create(
+        {
+          companyId: company._id.toString(),
+          employeeCode: "EMP001",
+          firstName: data.name.trim(),
+          lastName: "",
+          email,
+          phone: "",
+          designation: "SUPER ADMIN",
+          joiningDate: new Date(),
+          status: "ACTIVE",
+        },
+        session,
+      );
+
       const user = await userRepository.create(
         {
           companyId: company._id.toString(),
+          employeeId: employee._id.toString(),
           name: data.name.trim(),
           email,
           passwordHash,
@@ -117,12 +134,22 @@ export const authService = {
   async login(data: LoginInput): Promise<AuthResult> {
     await connectDB();
 
+    const companyCode = data.companyCode.trim().toUpperCase();
     const email = data.email.trim().toLowerCase();
 
-    const user = await userRepository.findByEmail(email);
+    const company = await companyRepository.findByCompanyCode(companyCode);
+
+    if (!company) {
+      throw new ApiError(401, "Invalid company code, email or password.");
+    }
+
+    const user = await userRepository.findByEmailAndTenant(
+      email,
+      company._id.toString(),
+    );
 
     if (!user) {
-      throw new ApiError(401, "Invalid email or password.");
+      throw new ApiError(401, "Invalid company code, email or password.");
     }
 
     const isPasswordValid = await verifyPassword(
@@ -131,7 +158,7 @@ export const authService = {
     );
 
     if (!isPasswordValid) {
-      throw new ApiError(401, "Invalid email or password.");
+      throw new ApiError(401, "Invalid company code, email or password.");
     }
 
     const accessToken = generateAccessToken({

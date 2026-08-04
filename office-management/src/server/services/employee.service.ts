@@ -4,15 +4,30 @@ import {
   UpdateEmployeeInput,
 } from "@/lib/validations/employee";
 import { ApiError } from "@/lib/errors/api-error";
+import { departmentRepository } from "@/server/repositories/department.repository";
+
 export const employeeService = {
   async create(companyId: string, data: CreateEmployeeInput) {
-    const existingEmployeeCode = await employeeRepository.findByEmployeeCode(
-      companyId,
-      data.employeeCode,
-    );
+    if (data.departmentId) {
+      const department = await departmentRepository.findById(
+        companyId,
+        data.departmentId,
+      );
 
-    if (existingEmployeeCode) {
-      throw new ApiError(409, "Employee code already exists.");
+      if (!department) {
+        throw new ApiError(404, "Department not found.");
+      }
+    }
+
+    if (data.employeeCode) {
+      const existingEmployeeCode = await employeeRepository.findByEmployeeCode(
+        companyId,
+        data.employeeCode,
+      );
+
+      if (existingEmployeeCode) {
+        throw new ApiError(409, "Employee code already exists.");
+      }
     }
     const existingEmail = await employeeRepository.findByEmail(
       companyId,
@@ -60,6 +75,19 @@ export const employeeService = {
     data: UpdateEmployeeInput,
   ) {
     const employee = await this.findById(companyId, employeeId);
+    if (
+      data.departmentId &&
+      data.departmentId !== employee.departmentId?.toString()
+    ) {
+      const department = await departmentRepository.findById(
+        companyId,
+        data.departmentId,
+      );
+
+      if (!department) {
+        throw new ApiError(404, "Department not found.");
+      }
+    }
 
     if (data.employeeCode && data.employeeCode !== employee.employeeCode) {
       const existing = await employeeRepository.findByEmployeeCode(

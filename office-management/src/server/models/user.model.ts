@@ -1,4 +1,3 @@
-import { constants } from "buffer";
 import { Schema, model, models, Types } from "mongoose";
 import { USER_ROLES, USER_ROLE_VALUES } from "@/constants/roles";
 
@@ -9,6 +8,12 @@ const userSchema = new Schema(
       ref: "Company",
       required: true,
       index: true,
+    },
+
+    employeeId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employee",
+      default: null,
     },
 
     name: {
