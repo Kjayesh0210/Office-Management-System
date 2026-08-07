@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-
 import { getDepartments } from "@/services/department.service";
 
 export function useDepartments() {

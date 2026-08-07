@@ -1,36 +1,33 @@
 import { api } from "@/lib/api/axios";
+import type {
+  CreateDepartmentInput,
+  UpdateDepartmentInput,
+} from "@/lib/validations/department";
+import type { Department } from "@/types/department";
 
-export async function getDepartments() {
+export async function getDepartments(): Promise<Department[]> {
   const response = await api.get("/departments");
 
-  return response.data;
+  return response.data.data;
 }
 
-export async function createDepartment(data: {
-  name: string;
-  code: string;
-  description?: string;
-}) {
+export async function createDepartment(
+  data: CreateDepartmentInput,
+): Promise<Department> {
   const response = await api.post("/departments", data);
 
-  return response.data;
+  return response.data.data;
 }
 
 export async function updateDepartment(
   id: string,
-  data: {
-    name?: string;
-    code?: string;
-    description?: string;
-  },
-) {
+  data: UpdateDepartmentInput,
+): Promise<Department> {
   const response = await api.put(`/departments/${id}`, data);
 
-  return response.data;
+  return response.data.data;
 }
 
 export async function deleteDepartment(id: string) {
-  const response = await api.delete(`/departments/${id}`);
-
-  return response.data;
+  await api.delete(`/departments/${id}`);
 }
