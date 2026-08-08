@@ -15,7 +15,7 @@ export const createEmployeeSchema = z.object({
 
   designation: z.string().trim().max(50).optional(),
 
-  joiningDate: z.coerce.date().optional(),
+  joiningDate: z.string().optional(),
 
   status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
 });

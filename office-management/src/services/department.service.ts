@@ -1,8 +1,10 @@
 import { api } from "@/lib/api/axios";
+
 import type {
   CreateDepartmentInput,
   UpdateDepartmentInput,
 } from "@/lib/validations/department";
+
 import type { Department } from "@/types/department";
 
 export async function getDepartments(): Promise<Department[]> {
@@ -23,7 +25,7 @@ export async function updateDepartment(
   id: string,
   data: UpdateDepartmentInput,
 ): Promise<Department> {
-  const response = await api.put(`/departments/${id}`, data);
+  const response = await api.patch(`/departments/${id}`, data);
 
   return response.data.data;
 }

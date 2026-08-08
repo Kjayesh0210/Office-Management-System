@@ -63,21 +63,25 @@ export function DepartmentDialog({ open, onOpenChange, department }: Props) {
   const loading = createMutation.isPending || updateMutation.isPending;
 
   async function onSubmit(data: CreateDepartmentInput) {
+    console.log("Department:", department);
+    console.log("Submitting:", data);
+
     try {
       if (department) {
+        console.log("UPDATE");
         await updateMutation.mutateAsync({
           id: department._id,
           data,
         });
       } else {
+        console.log("CREATE");
         await createMutation.mutateAsync(data);
       }
 
       reset();
-
       onOpenChange(false);
-    } catch {
-      // Error is already handled by the mutation hooks.
+    } catch (error) {
+      console.error(error);
     }
   }
 
